@@ -3,19 +3,16 @@ clear all; close all;
 Nrx = 2;
 Ntx = 2;
 
-num_symbol = 200;
+symbol = [5;1];
 sym_QAM = 16;  
-txsymbol_QAM = randi([0,sym_QAM-1], Ntx, num_symbol);
-SNR_dB = 0:2:20; % in dB
-SNR = 10.^(SNR_dB./10);
-symbol = [2,3];
-
-txsignal_QAM = qammod(symbol, sym_QAM,'gray','UnitAveragePower', true);
 
 
+txsignal_QAM = qammod(symbol, sym_QAM,'gray');
+softout = soft_output2x2(txsignal_QAM);
 
 
-x=txsignal_QAM(:).'; 
+function [x4_soft] = soft_output2x2(x)
+x=x(:).'; 
 X_r=real(x); 
 X_i=imag(x);
 
@@ -44,4 +41,3 @@ X_int_dec = X_int_bin.' * bin_to_dec;
 x4_soft = reshape((X_int_dec(:)),2,[]); 
 
 
-x = X(:).';

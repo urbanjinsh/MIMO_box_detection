@@ -41,10 +41,9 @@ for l = 1:length(SNR_dB)
         %soft
         
         soft = soft_decision_2x2(y_MMSE);
-        % SINR1 = (abs((w_MMSE(1,:)*H(:,1)))^2)/(abs((w_MMSE(1,:)*H(:,2)))^2+w_MMSE(1,:)*w_MMSE(1,:)'*N0);
-        % SINR2 = (abs((w_MMSE(2,:)*H(:,2)))^2)/(abs((w_MMSE(2,:)*H(:,1)))^2+w_MMSE(2,:)*w_MMSE(2,:)'*N0);
-        % QAM_demod_soft = soft .* [SINR1;SINR2];
-        QAM_demod_soft = soft;
+        SINR1 = (abs((w_MMSE(1,:)*H(:,1)))^2)/(abs((w_MMSE(1,:)*H(:,2)))^2+w_MMSE(1,:)*w_MMSE(1,:)'*N0);
+        SINR2 = (abs((w_MMSE(2,:)*H(:,2)))^2)/(abs((w_MMSE(2,:)*H(:,1)))^2+w_MMSE(2,:)*w_MMSE(2,:)'*N0);
+        QAM_demod_soft = soft .* ;
         
 
 
