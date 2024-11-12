@@ -18,7 +18,7 @@ errors_ML = zeros(length(SNR_dB),1);
 
 qam_symbol =0:1:sym_QAM-1;
 qam_signal = qammod(qam_symbol, sym_QAM, 'UnitAveragePower', true); 
-%%ML
+
 
 txsymbol_QAM = randi([0,sym_QAM-1], Ntx, num_symbol); % 生成0到15之间的整数作为符号
 txsignal_QAM = qammod(txsymbol_QAM, sym_QAM, 'UnitAveragePower', true); % 使用灰度映射调制符号

@@ -20,16 +20,16 @@ QAM_demod_MMSE = zeros(Ntx,num_symbol);
 errors_ZF = zeros(length(SNR_dB),1);
 errors_MMSE = zeros(length(SNR_dB),1);
 noise_variance = zeros(length(SNR_dB),1);
-txsymbol_QAM = randi([0,sym_QAM-1], Ntx, num_symbol); % 生成0到15之间的整数作为符号
-txsignal_QAM = qammod(txsymbol_QAM, sym_QAM, 'UnitAveragePower', true); % 使用灰度映射调制符号
-H = sqrt(0.5)*(randn(Nrx,Ntx)+1i*randn(Nrx,Ntx));
+
 
 for l = 1:length(SNR_dB)
     N0 = 1/(10^(SNR_dB(l)/10));
     %omiga2 = 0.5*N0;
     for iter = 1:iteration
         %%生成信号+调制
-
+        txsymbol_QAM = randi([0,sym_QAM-1], Ntx, num_symbol); % 生成0到15之间的整数作为符号
+        txsignal_QAM = qammod(txsymbol_QAM, sym_QAM, 'UnitAveragePower', true); % 使用灰度映射调制符号
+        H = sqrt(0.5)*(randn(Nrx,Ntx)+1i*randn(Nrx,Ntx));
         w_ZF = (H'*H)\H';
         w_MMSE = (H'*H+N0*eye(Ntx))\H';
         %P_s = mean(abs(y(:)).^2);
@@ -42,9 +42,10 @@ for l = 1:length(SNR_dB)
         % noisePower = sigPower/SNR(l);
         % noise_variance = noisePower;
 
-        noise = sqrt(N0/2)*(randn(Nrx,num_symbol)+1i*randn(Nrx,num_symbol));
-        y = H * txsignal_QAM + noise;
-
+        % noise = sqrt(N0/2)*(randn(Nrx,num_symbol)+1i*randn(Nrx,num_symbol));
+        % y = H * txsignal_QAM + noise;
+        y_withoutNoise = H * txsignal_QAM;
+        y = awgn(y_withoutNoise,SNR_dB(l));
         % w_ZF = inv(H'*H)*H';
         
         % w_MMSE = inv(H'*H+noise_variance*eye(Ntx))*H';

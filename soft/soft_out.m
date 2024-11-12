@@ -10,8 +10,8 @@ SNR_dB = 0:2:20; % in dB
 SNR = 10.^(SNR_dB./10);
 symbol = [2,3];
 
-txsignal_QAM = qammod(symbol, sym_QAM,'gray','UnitAveragePower', true);
-
+txsignal_QAM = qammod(txsymbol_QAM, sym_QAM,'gray','UnitAveragePower', true);
+y_value = txsignal_QAM(:,1);
 
 
 
