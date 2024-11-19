@@ -62,7 +62,8 @@ for l = 1:length(SNR_dB)
         
 
         %解调
-        QAM_demod_soft = qamdemod(y_MMSE',sym_QAM, 'OutputType','approxllr','UnitAveragePower', true, 'NoiseVariance', N0);
+        QAM_demod_soft2 = qamdemod(y_MMSE',sym_QAM, 'OutputType','approxllr','UnitAveragePower', true, 'NoiseVariance', N0);
+        QAM_demod_soft = soft_decode(y_MMSE');
         QAM_demod_MMSE = qamdemod(y_MMSE',sym_QAM,'OutputType','bit','UnitAveragePower', true);
 
         symbol_hard1 = vitdec(QAM_demod_MMSE(:,1),trellis,tbl,'cont','hard');
@@ -209,3 +210,37 @@ for j = 1:cols
     end
 end
 end
+
+function [x4_soft] = soft_decode(x)
+% x=txsignal_QAM(:).'; 
+X_r=real(x); 
+X_i=imag(x);
+
+d = 1/sqrt(10);
+% d = 1;
+if X_i < -2*d
+    X_1 = 2*d + 2*X_i;
+elseif X_i > 2*d
+    X_1 = -2*d + 2*X_i;
+else
+    X_1 = -X_i;
+end
+
+if X_r < -2*d
+    X_3 = 2*d + 2*X_r;
+elseif X_r > 2*d
+    X_3 = -2*d + 2*X_r;
+else 
+    X_3 = X_r;
+end
+X_2 = 2*d-abs(X_r);
+X_0 = 2*d-abs(X_i);
+X=[X_3; X_2;  X_1; X_0];  
+% X_int_bin = X >0;
+% bin_to_dec = [2^3;2^2;2^1;2^0];
+% X_int_dec = X_int_bin.' * bin_to_dec;
+% x4_soft = reshape((X_int_dec(:)),2,[]); 
+x4_soft = reshape((X(:)),2,[]);
+x4_soft=  -x4_soft';
+end
+
