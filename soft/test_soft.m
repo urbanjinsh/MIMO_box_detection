@@ -4,12 +4,14 @@ sym_QAM = 16;
 k = log2(sym_QAM);
 iteration = 400;
 num_symbol = 200;
+Ntx = 2;
+txsymbol_QAM = randi([0,sym_QAM-1],num_symbol,Ntx);
 H=[1,0.5;0.3,1];
 
 symbol = [3,2,5;14,2,5]; 
 % symbol = [0;0;1;0];
-signal = qammod(symbol,sym_QAM,'gray');
-
+signal = qammod(txsymbol_QAM,sym_QAM,'gray');
+signal = awgn(signal,6);
 % channel_signal = signal*H  ;
 % 
 % w_ZF = (H'*H)\H';
