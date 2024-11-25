@@ -8,11 +8,12 @@ Nrx = 2;
 sym_QAM = 16;  
 iteration = 400;
 num_symbol = 200;
+k_best_num = 4;
 
 SNR_dB = 0:4:20; % in dB
 SNR = 10.^(SNR_dB./10);
 
-errors_ML = zeros(length(SNR_dB),1);
+errors_KB = zeros(length(SNR_dB),1);
 errors_MMSE = zeros(length(SNR_dB),1);
 errors_SD = zeros(length(SNR_dB),1);
 
@@ -20,7 +21,7 @@ qam_symbol =0:1:sym_QAM-1;
 qam_signal = qammod(qam_symbol, sym_QAM, 'UnitAveragePower', true); 
 
 PED_count_SD = zeros(length(SNR_dB),1);
-PED_count_ML = zeros(length(SNR_dB),1);
+PED_count_KB = zeros(length(SNR_dB),1);
 
 
 for l = 1:length(SNR_dB)
@@ -35,28 +36,18 @@ for l = 1:length(SNR_dB)
         %MMSE
         w_MMSE = (H'*H+N0*eye(Ntx))\H';
         y_MMSE = w_MMSE * y;
-        %ML
-        x_hat = zeros(Ntx, num_symbol);
 
-        for index_symbol = 1: num_symbol
-            Min = inf;
-            for i = 1:sym_QAM
-                for j = 1 : sym_QAM
-                    temp_x_signal = [qam_signal(i);qam_signal(j)];
-                    temp = norm(y(:,index_symbol)-H*temp_x_signal);
-                    PED_count_ML(l) = PED_count_ML(l)+ 1;
-                    if temp < Min
-                        x_hat(:,index_symbol) = temp_x_signal;
-                        Min = temp;
-                    end
-
-                end
-
-            end
-
+        %K-Best
+        x_hat_KB = zeros(Ntx, num_symbol);
+        index_symbol = 1;
+        while index_symbol <= num_symbol
+            [r,count] = kbest(H, y(:, index_symbol), qam_signal, k_best_num);
+            
+            x_hat_KB(:, index_symbol) = r;
+            PED_count_KB(l) = PED_count_KB(l) + count;
+            index_symbol = index_symbol + 1;
         end
         
-
         %SD
         near_Q = find_near_Q(y_MMSE,1/sqrt(10));
         % Q is the Constellation diagram
@@ -75,11 +66,12 @@ for l = 1:length(SNR_dB)
                 index_symbol = index_symbol + 1;
             end
         end
+
         QAM_demod_MMSE = qamdemod(y_MMSE,sym_QAM, 'UnitAveragePower', true);
-        QAM_demod_ML = qamdemod(x_hat,sym_QAM, 'UnitAveragePower', true);
+        QAM_demod_KB = qamdemod(x_hat_KB,sym_QAM, 'UnitAveragePower', true);
         QAM_demod_SD = qamdemod(x_hat_SD,sym_QAM, 'UnitAveragePower', true);
         errors_MMSE(l) = errors_MMSE(l) + sum(sum(QAM_demod_MMSE~=txsymbol_QAM));
-        errors_ML(l) = errors_ML(l) + sum(sum(QAM_demod_ML~=txsymbol_QAM));
+        errors_KB(l) = errors_KB(l) + sum(sum(QAM_demod_KB~=txsymbol_QAM));
         errors_SD(l) = errors_SD(l) + sum(sum(QAM_demod_SD~=txsymbol_QAM));
         
     end
@@ -88,22 +80,22 @@ end
 
 error_rate_MMSE = errors_MMSE/(iteration*num_symbol*Ntx);
 error_rate_SD = errors_SD/(iteration*num_symbol*Ntx);
-error_rate_ML = errors_ML/(iteration*num_symbol*Ntx);
+error_rate_KB = errors_KB/(iteration*num_symbol*Ntx);
 
 figure;
-semilogy(SNR_dB,error_rate_MMSE,'b-s',SNR_dB,error_rate_SD,'g-x',SNR_dB,error_rate_ML,'r-o');
-legend('MMSE','SD','ML');
-title('BER of  MMSE, SD and ML');
+semilogy(SNR_dB,error_rate_MMSE,'b-s',SNR_dB,error_rate_SD,'g-x',SNR_dB,error_rate_KB,'r-o');
+legend('MMSE','SD','KB');
+title('BER of  MMSE, SD and KB');
 xlabel('SNR in dB');
 ylabel('BER');
 
 figure; % 创建新图形窗口
 plot(SNR_dB, PED_count_SD, '-o'); % 绘制第一组数据
 hold on; % 保持当前图形
-plot(SNR_dB, PED_count_ML, '-x'); % 绘制第二组数据
+plot(SNR_dB, PED_count_KB, '-x'); % 绘制第二组数据
 
 % 添加图例
-legend('SD','ML');
+legend('SD','KB');
 
 % 添加标题和轴标签
 title('PED times on different SNR');
@@ -207,5 +199,63 @@ x_hard_i(X_i <= 0 & X_i >= -2*d) = -1*d;
 x_hard_i(X_i > 0 & X_i <= 2*d) = 1*d;
 
 x_hard = x_hard_r + x_hard_i * 1i;
+
+end
+
+function [r,count_KB] = kbest(H, y, symbset, k)
+
+[Q, R] = qr(H, 0);
+z = Q'*y;
+n = size(H,2);
+
+d = 0;
+SYMBSETSIZE = length(symbset(:));
+distance = zeros(n,k);
+temp_distance = zeros(k,SYMBSETSIZE);
+RETVAL        = zeros(n, 1);
+TMPVAL        = zeros(n, 1);
+TMPSET        = zeros(n, k);
+k_best_symbset = zeros(n, k);
+count_KB = 0;
+
+for layer = n : -1 :1
+    if layer == n
+        for ii = 1:SYMBSETSIZE
+            TMPVAL(layer) = symbset(ii);
+            temp_distance(k,ii) = abs(z(layer) - R(layer,[layer:end])*TMPVAL(layer:end))^2 + temp_distance(k,ii);
+            count_KB = count_KB+ 1;
+        end
+    
+        [temp_distance_asc,sort_index] = sort(temp_distance(k,:));
+        k_best_symbset(n,:) = symbset(sort_index(1:k));
+        distance(n,:) = temp_distance(k,sort_index(1:k));
+
+    else
+        for i_kbest = 1:k
+            TMPVAL(layer+1:end) = k_best_symbset(layer+1:end,i_kbest);
+            for ii = 1:SYMBSETSIZE
+
+                TMPVAL(layer) = symbset(ii);
+                temp_distance(i_kbest,ii) = abs(z(layer) - R(layer,[layer:end])*TMPVAL(layer:end))^2 + distance(layer+1,i_kbest);
+                count_KB = count_KB+ 1;
+            end
+            
+        end
+    
+        [temp_distance_asc,sort_index] = sort(temp_distance(:));
+        pos2 = mod(sort_index(1:k),4);
+        pos2(pos2 == 0) = pos2(pos2 == 0) + 4;
+        k_best_symbset(layer+1,:) = k_best_symbset(layer+1,pos2);
+        pos2_layer1 = fix((sort_index(1:k)-0.1)/4)+1;
+        k_best_symbset(layer,:) = symbset(pos2_layer1);
+        
+        r = k_best_symbset(:,1);
+        
+    end
+
+
+    
+end
+
 
 end

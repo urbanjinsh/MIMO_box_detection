@@ -24,9 +24,10 @@ PED_count_ML = zeros(length(SNR_dB),1);
 
 k_best_num = 4;
 
-txsymbol_QAM = [1,2,3,4,5;1,2,3,4,5]; % 生成0到15之间的整数作为符号
+txsymbol_QAM = [8;6]; % 生成0到15之间的整数作为符号
 txsignal_QAM = qammod(txsymbol_QAM, sym_QAM, 'UnitAveragePower', true); % 使用灰度映射调制符号
-H = [1,0;0,1];
+H = [0.7,0.3;0.3,0.78];
+% H = [1,0;0,1];
 
 function [r,count] = sphdec(H, y, symbset, radius)
 
@@ -113,7 +114,7 @@ end
 
 r = kbest(H,txsignal_QAM,qam_signal,k_best_num);
 
-
+demod = qamdemod(r, sym_QAM, 'UnitAveragePower', true);
 
 
 function r = kbest(H, y, symbset, k)
@@ -124,19 +125,56 @@ n = size(H,2);
 
 d = 0;
 SYMBSETSIZE = length(symbset(:));
-temp_distance = zeros(n,SYMBSETSIZE);
+distance = zeros(n,k);
+temp_distance = zeros(k,SYMBSETSIZE);
 RETVAL        = zeros(n, 1);
 TMPVAL        = zeros(n, 1);
+TMPSET        = zeros(n, k);
+k_best_symbset = zeros(n, k);
+
+
+
+
 
 for layer = n : -1 :1
-    for ii = 1:SYMBSETSIZE
-        TMPVAL(layer) = symbset(ii);
-        temp_distance(layer-1,ii) = abs(z(layer) - R(layer,[layer:end])*TMPVAL(layer:end))^2 + temp_distance(layer,ii);
+    if layer == n
+        for ii = 1:SYMBSETSIZE
+            TMPVAL(layer) = symbset(ii);
+            temp_distance(k,ii) = abs(z(layer) - R(layer,[layer:end])*TMPVAL(layer:end))^2 + temp_distance(k,ii);
+        end
+    
+        [temp_distance_asc,sort_index] = sort(temp_distance(k,:));
+        k_best_symbset(n,:) = symbset(sort_index(1:k));
+        distance(n,:) = temp_distance(k,sort_index(1:k));
+
+    else
+        for i_kbest = 1:k
+            TMPVAL(layer+1:end) = k_best_symbset(layer+1:end,i_kbest);
+            for ii = 1:SYMBSETSIZE
+
+                TMPVAL(layer) = symbset(ii);
+                temp_distance(i_kbest,ii) = abs(z(layer) - R(layer,[layer:end])*TMPVAL(layer:end))^2 + distance(layer+1,i_kbest);
+            end
+            
+        end
+    
+        [temp_distance_asc,sort_index] = sort(temp_distance(:));
+        pos2 = mod(sort_index(1:k),4);
+        pos2(pos2 == 0) = pos2(pos2 == 0) + 4;
+        k_best_symbset(layer+1,:) = k_best_symbset(layer+1,pos2);
+        k_best_symbset(layer,:) = symbset(fix(sort_index(1:k)/4)+1);
+        
+        r = k_best_symbset(:,1);
+        
     end
-    [temp_distance_asc,sort_index] = sort(temp_distance);
-    k_best_symbset = symbset(sort_index(1:k));
+
+
+    
+end
 
 
 end
-end
+
+
+
 
