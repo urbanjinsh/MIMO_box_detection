@@ -117,57 +117,61 @@ r = kbest(H,txsignal_QAM,qam_signal,k_best_num);
 demod = qamdemod(r, sym_QAM, 'UnitAveragePower', true);
 
 
-function best_path = kbest(H, y, symbset, K)
+function r = kbest(H, y, symbset, k)
 
-num = length(symbset);
-nBitsPerSymbol = log2(num);
-bit_mapping = qamdemod(symbset,16,'OutputType','bit','UnitAveragePower', true);
-bit_mapping = bit_mapping';
 [Q, R] = qr(H, 0);
-y_tilde = Q' * y;
-N = size(H,2);
-S = symbset;
+z = Q'*y;
+n = size(H,2);
+
 d = 0;
+SYMBSETSIZE = length(symbset(:));
+distance = zeros(n,k);
+temp_distance = zeros(k,SYMBSETSIZE);
+RETVAL        = zeros(n, 1);
+TMPVAL        = zeros(n, 1);
+TMPSET        = zeros(n, k);
+k_best_symbset = zeros(n, k);
 
-paths = zeros(K, N);    % 存储候选路径
-path_metrics = inf(K, 1); % 路径度量 (初始化为无穷大)
-path_metrics(1) = 0;    % 第一条路径度量初始化为 0
-metrics_per_layer = zeros(K,N);
 
-% 从底层到顶层递归
-for i = N:-1:1
-    candidates = []; % 临时存储扩展路径
-    metrics = [];    % 对应的路径度量
-    
-    % 扩展每条路径
-    for k = 1:K
-        for s = S
-            new_path = paths(k, :);
-            new_path(i) = s; % 更新当前符号
-            
-            % 计算新的路径度量
-            partial_metric = path_metrics(k) + abs(y_tilde(i) - R(i, i:end) * new_path(i:end).')^2;
-            
-            % 保存扩展的路径及度量
-            candidates = [candidates; new_path];
-            metrics = [metrics; partial_metric];
+
+
+
+for layer = n : -1 :1
+    if layer == n
+        for ii = 1:SYMBSETSIZE
+            TMPVAL(layer) = symbset(ii);
+            temp_distance(k,ii) = abs(z(layer) - R(layer,[layer:end])*TMPVAL(layer:end))^2 + temp_distance(k,ii);
         end
-    end
     
-    % 对路径按度量排序，并保留前 K 条
-    [sorted_metrics, idx] = sort(metrics);
-    paths = candidates(idx(1:K), :);
-    path_metrics = sorted_metrics(1:K);
-    if i == N
-        metrics_per_layer(:,i) = path_metrics;
-    else 
-        metrics_per_layer(:,i) = path_metrics -metrics_per_layer(:,i+1);
+        [temp_distance_asc,sort_index] = sort(temp_distance(k,:));
+        k_best_symbset(n,:) = symbset(sort_index(1:k));
+        distance(n,:) = temp_distance(k,sort_index(1:k));
+
+    else
+        for i_kbest = 1:k
+            TMPVAL(layer+1:end) = k_best_symbset(layer+1:end,i_kbest);
+            for ii = 1:SYMBSETSIZE
+
+                TMPVAL(layer) = symbset(ii);
+                temp_distance(i_kbest,ii) = abs(z(layer) - R(layer,[layer:end])*TMPVAL(layer:end))^2 + distance(layer+1,i_kbest);
+            end
+            
+        end
+    
+        [temp_distance_asc,sort_index] = sort(temp_distance(:));
+        pos2 = mod(sort_index(1:k),4);
+        pos2(pos2 == 0) = pos2(pos2 == 0) + 4;
+        k_best_symbset(layer+1,:) = k_best_symbset(layer+1,pos2);
+        k_best_symbset(layer,:) = symbset(fix(sort_index(1:k)/4)+1);
+        
+        r = k_best_symbset(:,1);
+        
     end
+
+
+    
 end
 
-% 输出最优路径及其度量
-best_path = paths(1, :);
-best_metric = path_metrics(1);
 
 end
 
