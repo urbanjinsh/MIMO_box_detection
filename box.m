@@ -159,45 +159,80 @@ end
 
 end
 
-function [r,box_count] = box_dec(H,y,k_box)
-
+function [best_path,count] = box_dec(H,y,k_box)
+count = 0;
 [Q, R] = qr(H, 0);
 z = Q'*y;
 n = size(H,2);
 a = zeros(n,1);
 s = zeros(n,k_box);
-box_count = 0;
+K = k_box;
+N=n;
+paths = zeros(K, N);    % 存储候选路径
+path_metrics = inf(K, 1); % 路径度量 (初始化为无穷大)
+path_metrics(1) = 0;    % 第一条路径度量初始化为 0
+metrics_per_layer = zeros(K,N);
 
 for layer = n:-1:1
+    candidates = []; % 临时存储扩展路径
+    metrics = [];    % 对应的路径度量
     if layer ==n
         a(n) = z(layer)/R(layer,layer);
-        s(n,:) = get_box(a(n));
+        partial_candidates = get_box(a(n));
+        for s = partial_candidates
+            new_path = zeros(1, N);
+            new_path(layer) = s; % 更新当前符号
+            partial_metric = abs(z(layer) - R(layer, layer:end) * new_path(layer:end).')^2;
+            count = count+1;
+            metrics = [metrics; partial_metric];
+            candidates = [candidates; new_path];
+        end
+        paths = candidates;
+        path_metrics = metrics;
+        metrics_per_layer(:,layer) = path_metrics;
 
     elseif layer ==1
-        [row,col] = size(s);
-        d_min = inf;
-        for index = 1:col         
-            
-            a(1) = (z(1)-R(1,2)*s(layer+1,index))/R(1,1);
-            s(1,index) = find_near_Q(a(1),1/sqrt(10));
-            [d,count] = cal_distance(2,z,s(:,index),R);
-            box_count = box_count + count;
-            if d < d_min
-                d_min = d;
-                index_min = index;
-
-            end
-            r= s(:,index_min);
-
-        end
-
         
+        for k = 1:K
+            a(1) = (z(layer) - R(layer, layer+1:N) * paths(k,layer+1:N)) / R(layer, layer);
+            partial_candidates = find_near_Q(a(1),1/sqrt(10));
+            for s = partial_candidates
+                new_path = paths(k, :);
+                new_path(layer) = s; % 更新当前符号
+                partial_metric = path_metrics(k) + abs(z(layer) - R(layer, layer:end) * new_path(layer:end).')^2;
+                count = count+1;
+                metrics = [metrics; partial_metric];
+                candidates = [candidates; new_path];
+            end      
+        end
+        metrics_per_layer(:,layer) = path_metrics -metrics_per_layer(:,layer+1);
+        [sorted_metrics, idx] = sort(metrics);
+        paths = candidates(idx(1:K), :);
+        path_metrics = sorted_metrics(1:K);
 
+    else% layer !=n and 1
+        
+        for k = 1:K
+            a(layer) = (x(layer) - r(layer, layer+1:N) * paths(k,layer+1:N)) / r(layer, layer);
+            partial_candidates = get_box(a(n));
+            for s = partial_candidates
+                new_path = paths(k, :);
+                new_path(layer) = s; % 更新当前符号
+                partial_metric = path_metrics(k) + abs(z(layer) - R(layer, layer:end) * new_path(layer:end).')^2;
+                count = count+1;
+                metrics = [metrics; partial_metric];
+                candidates = [candidates; new_path];
+            end      
+        end
+        paths = candidates;
+        path_metrics = metrics;
+        metrics_per_layer(:,layer) = path_metrics -metrics_per_layer(:,layer+1);
     end
 
 
 end
-
+best_path = paths(1, :);
+best_metric = path_metrics(1);
 
 end
 

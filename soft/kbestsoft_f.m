@@ -26,12 +26,12 @@ PED_count_ML = zeros(length(SNR_dB),1);
 k_box = 4;
 k_best_num = 4;
 
-txsymbol_QAM = [6;1]; % 生成0到15之间的整数作为符号
+txsymbol_QAM = [9;8]; % 生成0到15之间的整数作为符号
 txsignal_QAM = qammod(txsymbol_QAM, sym_QAM, 'UnitAveragePower', true); % 使用灰度映射调制符号
 % H = [0.7,0.2;0.8,0.3];
 H=[1.4 - 0.6i,0.7 - 0.7i;-0.8 - 0.6i,0.3 + 0.06i];
 % H = [1,0;0,1];
-l=6;
+l=5;
 N0 = 1/(10^(SNR_dB(l)/10));
 noise = sqrt(N0/2)*(randn(Nrx,num_symbol)+1i*randn(Nrx,num_symbol));
 % noise = 0;
@@ -39,10 +39,10 @@ txsignal_QAM = H*txsignal_QAM+noise;
 
 
 % box_list= get_box(txsignal_QAM(2));
-r = kbest_soft(H,txsignal_QAM,qam_signal,k_best_num,N0);
-demod = qamdemod(r,sym_QAM, 'UnitAveragePower', true);
+[LLR,best_path] = kbest_soft(H,txsignal_QAM,qam_signal,k_best_num,N0);
+demod = qamdemod(best_path,sym_QAM, 'UnitAveragePower', true);
 
-function LLR = kbest_soft(H, y, symbset, K,N0)
+function [LLR,best_path] = kbest_soft(H, y, symbset, K,N0)
 
 num = length(symbset);
 nBitsPerSymbol = log2(num);
@@ -58,35 +58,50 @@ paths = zeros(K, N);    % 存储候选路径
 path_metrics = inf(K, 1); % 路径度量 (初始化为无穷大)
 path_metrics(1) = 0;    % 第一条路径度量初始化为 0
 metrics_per_layer = zeros(K,N);
-
+count = 0;
 % 从底层到顶层递归
 for i = N:-1:1
     candidates = []; % 临时存储扩展路径
     metrics = [];    % 对应的路径度量
     
     % 扩展每条路径
-    for k = 1:K
+    if i ==N
         for s = S
-            new_path = paths(k, :);
+            new_path = zeros(1, N);
             new_path(i) = s; % 更新当前符号
             
             % 计算新的路径度量
-            partial_metric = path_metrics(k) + abs(y_tilde(i) - R(i, i:end) * new_path(i:end).')^2;
-            
+            partial_metric = abs(y_tilde(i) - R(i, i:end) * new_path(i:end).')^2;
+            count = count+1;
             % 保存扩展的路径及度量
             candidates = [candidates; new_path];
             metrics = [metrics; partial_metric];
         end
-    end
+        [sorted_metrics, idx] = sort(metrics);
+        paths = candidates(idx(1:K), :); % 初始化前 K 条路径
+        path_metrics = sorted_metrics(1:K);
+        metrics_per_layer(:,i) = path_metrics;
+    else
+        for k = 1:K
+            for s = S
+                new_path = paths(k, :);
+                new_path(i) = s; % 更新当前符号
+            
+                % 计算新的路径度量
+                partial_metric = path_metrics(k) + abs(y_tilde(i) - R(i, i:end) * new_path(i:end).')^2;
+                count = count+1;
+                % 保存扩展的路径及度量
+                candidates = [candidates; new_path];
+                metrics = [metrics; partial_metric];
+            end
+        end
     
     % 对路径按度量排序，并保留前 K 条
     [sorted_metrics, idx] = sort(metrics);
     paths = candidates(idx(1:K), :);
     path_metrics = sorted_metrics(1:K);
-    if i == N
-        metrics_per_layer(:,i) = path_metrics;
-    else 
-        metrics_per_layer(:,i) = path_metrics -metrics_per_layer(:,i+1);
+
+    metrics_per_layer(:,i) = path_metrics -metrics_per_layer(:,i+1);
     end
 end
 
@@ -121,18 +136,18 @@ for i = 1:N
         
         % 如果比特为 0 或比特为 1 的路径不存在，设置度量为无穷大
         if isempty(d0_candidates)
-            d0 = 100*N0;
+            d0 = 20/sqrt(10);
         else
             d0 = min(d0_candidates); % 最小路径度量
         end
         
         if isempty(d1_candidates)
-            d1 = 100*N0;
+            d1 = 20/sqrt(10);
         else
             d1 = min(d1_candidates); % 最小路径度量
         end
         % 计算 LLR
-        LLR(b, i) = 1/N0*(d0 - d1);
+        LLR(b, i) = -1/N0*(d0 - d1);
     end
 end
 
