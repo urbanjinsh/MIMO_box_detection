@@ -1,22 +1,15 @@
-figure;
-semilogy(SNR_dB,error_rate_MMSE,'b-s',SNR_dB,error_rate_box,'g-x',SNR_dB,error_rate_KB,'r-o');
-legend('MMSE','box,k=4','KB,k=4');
-title('BER of  MMSE, box and KB');
-xlabel('SNR in dB');
-ylabel('BER');
+A = [6,5,4,3]; % 二进制表示为 1111
+% bit = bitget(A, 1:6); % 获取最低位，结果为 1
+bit1 = bitget(A, 1); % 获取最低位，结果为 1
+bit2 = bitget(A, 2); % 获取第二位，结果为 1
+bit3 = bitget(A, 3); % 获取第三位，结果为 1
+bit4 = bitget(A, 4); % 获取第四位，结果为 1
+bit5 = bitget(A, 5); % 获取第四位，结果为 1
+bit6 = bitget(A, 6); % 获取第四位，结果为 1
+bit = zeros(length(A), 6); % 初始化一个矩阵来存储结果
 
-figure; % 创建新图形窗口
-plot(SNR_dB, PED_count_box, '-o'); % 绘制第一组数据
-hold on; % 保持当前图形
-plot(SNR_dB, PED_count_KB, '-x'); % 绘制第二组数据
-
-% 添加图例
-legend('box,k=4','KB,k=4');
-
-% 添加标题和轴标签
-title('PED times on different SNR');
-xlabel('SNR (dB)');
-ylabel('PED calculation tiumes');
-
-% 显示网格
-grid on;
+for i = 1:length(A)
+    for j = 1:6
+        bit(i, j) = bitget(A(i), j);
+    end
+end
