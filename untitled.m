@@ -1,15 +1,42 @@
-A = [6,5,4,3]; % 二进制表示为 1111
-% bit = bitget(A, 1:6); % 获取最低位，结果为 1
-bit1 = bitget(A, 1); % 获取最低位，结果为 1
-bit2 = bitget(A, 2); % 获取第二位，结果为 1
-bit3 = bitget(A, 3); % 获取第三位，结果为 1
-bit4 = bitget(A, 4); % 获取第四位，结果为 1
-bit5 = bitget(A, 5); % 获取第四位，结果为 1
-bit6 = bitget(A, 6); % 获取第四位，结果为 1
-bit = zeros(length(A), 6); % 初始化一个矩阵来存储结果
+% 参数设置
+M = 64; % 16QAM
+num_trials = 1e6; % 随机尝试次数
+bit_num = log2(M);
+% 星座点排列（以坐标编号为准）
+rectangles = [1, 2, 5, 6; 2, 3, 6, 7; 3, 4, 7, 8; 
+              5, 6, 9, 10; 6, 7, 10, 11; 7, 8, 11, 12;
+              9, 10, 13, 14; 10, 11, 14, 15; 11, 12, 15, 16];
 
-for i = 1:length(A)
-    for j = 1:6
-        bit(i, j) = bitget(A(i), j);
+success = false; % 标志位
+for trial = 1:num_trials
+    % 随机生成比特映射
+    bits = randperm(M) - 1; % 生成0到15的随机排列
+    
+    % 检查每个矩形的条件
+    is_valid = true;
+    for r = 1:size(rectangles, 1)
+        rect = rectangles(r, :); % 当前矩形的点
+        bits_in_rect = zeros(1,bit_num);
+        for bit = 1:length(rect)
+            for rect_num = 1:bit_num
+                rrt = bits(rect(rect_num));
+                bits_in_rect(rect_num) = bitget(bits(rect(rect_num)), bit);
+            end
+            if all(bits_in_rect == 0) || all(bits_in_rect == 1)
+                is_valid = false;
+                break;
+            end
+        end
     end
+    
+    if is_valid
+        fprintf('找到满足条件的映射！\n');
+        disp(bits);
+        success = true;
+        break;
+    end
+end
+
+if ~success
+    fprintf('未找到满足条件的映射。\n');
 end

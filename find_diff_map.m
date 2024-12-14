@@ -3,19 +3,24 @@ close all;
 
 
 % 参数设置
-M = 64; % 64QAM
+M = 16; % 64QAM
 num_trials = 1e6; % 随机尝试次数
+n = 2; % 正方形边长，改为3x3的矩形区域（面积为9）
 bit_num = log2(M);
 
 % 定义矩形的索引
 rows = sqrt(M);
 cols = rows;
 rectangles = [];
-for i = 1:rows-1
-    for j = 1:cols-1
-        idx = [(i-1)*cols + j, (i-1)*cols + j+1, ...
-               i*cols + j, i*cols + j+1];
-        rectangles = [rectangles; idx];
+for i = 1:rows-n+1
+    for j = 1:cols-n+1
+        rect = [];
+        for di = 0:n-1
+            for dj = 0:n-1
+                rect = [rect, (i+di-1)*cols + (j+dj)];
+            end
+        end
+        rectangles = [rectangles; rect];
     end
 end
 
